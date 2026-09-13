@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ferro Fabs – V2.2</title><link rel="stylesheet" href="style.css"></head><body>
+<header><img src="assets/logo.jpg"><div><h1>Ferro Fabs</h1><p>Your Vision. Our Finishing Touch.</p></div></header>
+<main>
+<section class="toolbar"><label class="upload">📷 Choose shelf photo<input id="file" type="file" accept="image/jpeg,image/png,image/webp"></label><button id="sample">Use sample</button><button id="reset">Reset corners</button><button id="center">Center image</button><span id="status">Choose a JPG/PNG photo to begin.</span></section>
+<div class="workspace">
+<section class="stage"><div id="stageWrap"><canvas id="cv"></canvas><div id="handles"></div></div><div class="hint">Drag the large corner circles to define the shelf opening. The photo stays fixed.</div></section>
+<aside>
+<h2>Door layout</h2><div class="seg" id="doors"><button data-n="1">1</button><button data-n="2" class="on">2</button><button data-n="3">3</button><button data-n="4">4</button></div>
+<label>Finish search<input id="search" placeholder="e.g. IM501 or Rose Wood"></label>
+<div id="catalog" class="catalog"></div>
+<div class="controls"><label>Opacity <input id="opacity" type="range" min="0.2" max="1" step="0.05" value="0.9"></label><label>Texture rotation <select id="rot"><option value="0">0°</option><option value="90">90°</option></select></label></div>
+<button id="apply" class="primary">Apply finish to doors</button><button id="export">Export JPG</button>
+</aside></div>
+</main><script src="app.js"></script></body></html>
