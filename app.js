@@ -47,14 +47,65 @@ document.getElementById('opacity').oninput=()=>{if(applied)draw()};document.getE
 document.getElementById('export').onclick=()=>{if(!source)return setStatus('Choose a photo first.');draw();cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='FerroFabs_preview.jpg';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)},'image/jpeg',.92)};
 // ---------- Automatic opening detection ----------
 function autoDetect(){if(!source)return setStatus('Choose a photo first.');setStatus('Analyzing photo for the strongest shelf opening…');setTimeout(()=>{const r=detectOpening(source);if(r){corners=r;dividers=[];for(let i=1;i<doors;i++){const t=i/doors;dividers.push({top:{x:corners[0].x+(corners[1].x-corners[0].x)*t,y:corners[0].y+(corners[1].y-corners[0].y)*t},bottom:{x:corners[3].x+(corners[2].x-corners[3].x)*t,y:corners[3].y+(corners[2].y-corners[3].y)*t}})}doorFinishes=Array(doors).fill(null);applied=false;draw();renderHandles();setStatus('Opening detected — review the green corners and adjust if needed.');}else setStatus('Could not find a confident opening. Please adjust the four corners manually.');},30)}
-function detectOpening(im){const max=180,sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.max(80,Math.round(im.naturalWidth*sc)),h=Math.max(80,Math.round(im.naturalHeight*sc));const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.drawImage(im,0,0,w,h);const d=g.getImageData(0,0,w,h).data;const gray=new Float32Array(w*h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const k=(y*w+x)*4;gray[y*w+x]=.299*d[k]+.587*d[k+1]+.114*d[k+2]}
-let mag=new Float32Array(w*h),mx=0;for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;const gx=-gray[i-w-1]-2*gray[i-1]-gray[i+w-1]+gray[i-w+1]+2*gray[i+1]+gray[i+w+1];const gy=-gray[i-w-1]-2*gray[i-w]-gray[i-w+1]+gray[i+w-1]+2*gray[i+w]+gray[i+w+1];const m=Math.hypot(gx,gy);mag[i]=m;if(m>mx)mx=m}
-const thr=mx*.28,pts=[];for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++)if(mag[y*w+x]>thr)pts.push([x,y,mag[y*w+x]]);if(pts.length<100)return null;
-function lineScore(theta,rho){const co=Math.cos(theta),si=Math.sin(theta);let s=0;for(const [x,y,m] of pts){if(Math.abs(x*co+y*si-rho)<1.5)s+=m}return s}
-function bestLines(centerTheta,spread){const arr=[];const diag=Math.hypot(w,h),steps=36;for(let j=0;j<steps;j++){const theta=centerTheta-spread+2*spread*j/(steps-1),co=Math.cos(theta),si=Math.sin(theta);const minR=-diag,maxR=diag,bins=Math.ceil(diag*2/2)+1,scores=new Float32Array(bins);for(const [x,y,m] of pts){const r=x*co+y*si;const bi=Math.round((r-minR)/2);if(bi>=0&&bi<bins)scores[bi]+=m}for(let b=2;b<bins-2;b++){if(scores[b]>=scores[b-1]&&scores[b]>=scores[b+1]&&scores[b]>0){arr.push({theta,rho:minR+b*2,score:scores[b]})}}}arr.sort((a,b)=>b.score-a.score);const keep=[];for(const q of arr){if(keep.every(k=>Math.abs(q.rho-k.rho)>w*.10 || Math.abs(q.theta-k.theta)>.12))keep.push(q);if(keep.length>=12)break}return keep}
-const vl=bestLines(0,.55),hl=bestLines(Math.PI/2,.55);function intersect(a,b){const a1=Math.cos(a.theta),b1=Math.sin(a.theta),a2=Math.cos(b.theta),b2=Math.sin(b.theta),det=a1*b2-b1*a2;if(Math.abs(det)<.05)return null;return{x:(a.rho*b2-b1*b.rho)/det,y:(a1*b.rho-a.rho*a2)/det}}
-let best=null;for(let li=0;li<vl.length;li++)for(let ri=li+1;ri<vl.length;ri++){const L=vl[li],R=vl[ri];const xm=w*.5;const xl=L.rho/Math.cos(L.theta)-Math.tan(L.theta)*0;const xr=R.rho/Math.cos(R.theta)-Math.tan(R.theta)*0; if(Math.abs(xl-xr)<w*.18)continue;for(let ti=0;ti<hl.length;ti++)for(let bi=ti+1;bi<hl.length;bi++){const T=hl[ti],B=hl[bi];const p0=intersect(L,T),p1=intersect(R,T),p2=intersect(R,B),p3=intersect(L,B);if(!p0||!p1||!p2||!p3)continue;if([p0,p1,p2,p3].some(q=>q.x<0||q.x>w||q.y<0||q.y>h))continue;const topY=(p0.y+p1.y)/2,bottomY=(p2.y+p3.y)/2,leftX=(p0.x+p3.x)/2,rightX=(p1.x+p2.x)/2;if(rightX-leftX<w*.18||bottomY-topY<h*.18)continue;const area=Math.abs((p0.x*p1.y+p1.x*p2.y+p2.x*p3.y+p3.x*p0.y-p1.x*p0.y-p2.x*p1.y-p3.x*p2.y-p0.x*p3.y)/2);const central=Math.max(0,1-Math.abs((leftX+rightX)/2/w-.5)*1.4);const score=L.score+R.score+T.score+B.score+Math.log(area+1)*450+central*2500;if(!best||score>best.score)best={p:[p0,p1,p2,p3],score}}}
-if(!best)return null;return best.p.map(q=>({x:q.x/w,y:q.y/h}));}
+function detectOpening(im){
+  // V2.5 improved detector: prefer the largest coherent 4-sided cabinet/opening
+  // instead of the strongest small shelf compartment.
+  const max=260,sc=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+  const w=Math.max(100,Math.round(im.naturalWidth*sc)),h=Math.max(100,Math.round(im.naturalHeight*sc));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0,w,h);
+  const d=g.getImageData(0,0,w,h).data;
+  const gray=new Float32Array(w*h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const k=(y*w+x)*4;gray[y*w+x]=.299*d[k]+.587*d[k+1]+.114*d[k+2]}
+  const mag=new Float32Array(w*h);let mx=0;
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;
+    const gx=-gray[i-w-1]-2*gray[i-1]-gray[i+w-1]+gray[i-w+1]+2*gray[i+1]+gray[i+w+1];
+    const gy=-gray[i-w-1]-2*gray[i-w]-gray[i-w+1]+gray[i+w-1]+2*gray[i+w]+gray[i+w+1];
+    const m=Math.hypot(gx,gy);mag[i]=m;if(m>mx)mx=m}
+  const thr=Math.max(8,mx*.16),pts=[];
+  for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){const m=mag[y*w+x];if(m>thr)pts.push([x,y,m])}
+  if(pts.length<120)return null;
+
+  function bestLines(centerTheta,spread){
+    const arr=[],diag=Math.hypot(w,h),steps=56;
+    for(let j=0;j<steps;j++){const theta=centerTheta-spread+2*spread*j/(steps-1),co=Math.cos(theta),si=Math.sin(theta),minR=-diag,maxR=diag,bw=1.75,bins=Math.ceil((maxR-minR)/bw)+1,scores=new Float32Array(bins),counts=new Uint16Array(bins);
+      for(const [x,y,m] of pts){const r=x*co+y*si,bi=Math.round((r-minR)/bw);if(bi>=0&&bi<bins){scores[bi]+=m;counts[bi]++}}
+      for(let b=2;b<bins-2;b++)if(scores[b]>=scores[b-1]&&scores[b]>=scores[b+1]&&counts[b]>=4)arr.push({theta,rho:minR+b*bw,score:scores[b],count:counts[b]});
+    }
+    arr.sort((a,b)=>b.score-a.score);const keep=[];
+    for(const q of arr){if(keep.every(k=>Math.abs(q.rho-k.rho)>Math.min(w,h)*.045||Math.abs(q.theta-k.theta)>.055))keep.push(q);if(keep.length>=24)break}
+    return keep;
+  }
+  const vl=bestLines(0,.65),hl=bestLines(Math.PI/2,.65);
+  function intersect(a,b){const a1=Math.cos(a.theta),b1=Math.sin(a.theta),a2=Math.cos(b.theta),b2=Math.sin(b.theta),det=a1*b2-b1*a2;if(Math.abs(det)<.035)return null;return{x:(a.rho*b2-b1*b.rho)/det,y:(a1*b.rho-a.rho*a2)/det}}
+  function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+  function sideSupport(a,b){
+    const n=32;let sum=0,hit=0;
+    for(let i=0;i<=n;i++){const t=i/n,x=Math.round(a.x+(b.x-a.x)*t),y=Math.round(a.y+(b.y-a.y)*t);let best=0;
+      for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&xx<w&&yy>=0&&yy<h)best=Math.max(best,mag[yy*w+xx])}
+      sum+=best;if(best>thr*.65)hit++}
+    return{avg:sum/(n+1),continuity:hit/(n+1)};
+  }
+  let best=null;
+  for(let li=0;li<vl.length;li++)for(let ri=li+1;ri<vl.length;ri++){const L=vl[li],R=vl[ri];
+    for(let ti=0;ti<hl.length;ti++)for(let bi=ti+1;bi<hl.length;bi++){const T=hl[ti],B=hl[bi];
+      const p0=intersect(L,T),p1=intersect(R,T),p2=intersect(R,B),p3=intersect(L,B);if(!p0||!p1||!p2||!p3)continue;
+      if([p0,p1,p2,p3].some(q=>q.x<0||q.x>w||q.y<0||q.y>h))continue;
+      const top=dist(p0,p1),right=dist(p1,p2),bottom=dist(p3,p2),left=dist(p0,p3),width=(top+bottom)/2,height=(left+right)/2;
+      const area=Math.abs((p0.x*p1.y+p1.x*p2.y+p2.x*p3.y+p3.x*p0.y-p1.x*p0.y-p2.x*p1.y-p3.x*p2.y-p0.x*p3.y)/2);
+      const af=area/(w*h),wf=width/w,hf=height/h;if(wf<.24||hf<.22||af<.055)continue;
+      const minX=Math.min(p0.x,p1.x,p2.x,p3.x),maxX=Math.max(p0.x,p1.x,p2.x,p3.x),minY=Math.min(p0.y,p1.y,p2.y,p3.y),maxY=Math.max(p0.y,p1.y,p2.y,p3.y);
+      const margin=Math.min(minX,w-maxX,minY,h-maxY),borderPenalty=margin<Math.min(w,h)*.025?1800*(1-margin/(Math.min(w,h)*.025)):0;
+      const ss=[sideSupport(p0,p1),sideSupport(p1,p2),sideSupport(p3,p2),sideSupport(p0,p3)],continuity=ss.reduce((a,b)=>a+b.continuity,0)/4,avgSupport=ss.reduce((a,b)=>a+b.avg,0)/4;if(continuity<.16)continue;
+      const centerX=((p0.x+p1.x+p2.x+p3.x)/4)/w,centerY=((p0.y+p1.y+p2.y+p3.y)/4)/h,centerBonus=Math.max(0,1-Math.hypot(centerX-.5,centerY-.5)*1.2),lineStrength=L.score+R.score+T.score+B.score;
+      const score=af*16000+wf*1200+hf*1000+continuity*4200+(avgSupport/Math.max(1,mx))*1800+Math.log1p(lineStrength)*180+centerBonus*700-borderPenalty;
+      if(!best||score>best.score)best={p:[p0,p1,p2,p3],score};
+    }
+  }
+  if(!best)return null;
+  return best.p.map(q=>({x:Math.max(.005,Math.min(.995,q.x/w)),y:Math.max(.005,Math.min(.995,q.y/h))}));
+}
+
 document.getElementById('autoDetect').onclick=autoDetect;
 // ---------- Camera ----------
 const camModal=document.getElementById('cameraModal'),video=document.getElementById('cameraVideo'),camCanvas=document.getElementById('cameraCanvas');let stream=null;
