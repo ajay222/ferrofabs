@@ -1,8 +1,8 @@
-# Ferro Fabs V2.3
+# Ferro Fabs V2.4
 
 Open `index.html` directly or publish the folder on GitHub Pages.
 
-## V2.3
+## V2.4
 - Automatic shelf/opening suggestion using local image edge/line analysis; manual corner correction remains available.
 - 149 Imperia finishes plus Crossbond shade-card finishes extracted from the supplied Crossbond ACP Power Series PDF.
 - Direct camera capture through the browser on HTTPS/GitHub Pages (camera permission required).

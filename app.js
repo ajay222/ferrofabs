@@ -2,7 +2,7 @@
 'use strict';
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 const file=document.getElementById('file'),status=document.getElementById('status'),wrap=document.getElementById('stageWrap'),handlesEl=document.getElementById('handles');
-const img=new Image(); let source=null, scale=1, doors=2, applied=false, finish=null, selectedDoor=0;
+const img=new Image(); let source=null, scale=1, doors=1, applied=false, finish=null, selectedDoor=0;
 let doorFinishes=[]; const textureCache={};
 let corners=[{x:.12,y:.14},{x:.88,y:.14},{x:.88,y:.86},{x:.12,y:.86}], dividers=[]; let drag=null;
 const DEFAULT_CORNERS=[{x:.12,y:.14},{x:.88,y:.14},{x:.88,y:.86},{x:.12,y:.86}];
@@ -61,5 +61,5 @@ const camModal=document.getElementById('cameraModal'),video=document.getElementB
 async function openCamera(){if(!navigator.mediaDevices?.getUserMedia){setStatus('Camera access is not supported by this browser. Use Choose shelf photo.');return}try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});video.srcObject=stream;camModal.classList.add('show');setStatus('Camera ready — frame the shelf and click Capture.')}catch(e){setStatus('Camera permission was blocked. Allow camera access in the browser, then try again.')}}
 function closeCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}video.srcObject=null;camModal.classList.remove('show')}
 document.getElementById('camera').onclick=openCamera;document.getElementById('cameraClose').onclick=closeCamera;document.getElementById('cameraCapture').onclick=()=>{if(!video.videoWidth)return;camCanvas.width=video.videoWidth;camCanvas.height=video.videoHeight;camCanvas.getContext('2d').drawImage(video,0,0);loadSrc(camCanvas.toDataURL('image/jpeg',.92),'Camera photo captured — click Auto-detect opening or adjust manually.');closeCamera()};
-window.addEventListener('resize',()=>{if(source)resize()});resetGeometry();renderCatalog();loadSrc('assets/sample.jpg','Sample loaded. Click Auto-detect opening or adjust manually.');
+window.addEventListener('resize',()=>{if(source)resize()});resetGeometry();renderCatalog();setStatus('Choose a photo or take a picture.');
 })();
